@@ -29,7 +29,7 @@ import numpy as np
 # fetch a weather forecast from a city
 async def getweather():
     async with python_weather.Client(format=python_weather.IMPERIAL) as client:
-        weather = await client.get("San Francisco")
+        weather = await client.get("Dublin")
 
         # returns the current day's forecast temperature (int)
         return (weather.current.type), (weather.current.temperature)
@@ -70,13 +70,12 @@ def check_sentence_spelling(sentence):
 
     return result, questionable_word
 
-# Building the AI
+# Creating chatbot class
 class ChatBot:
     rewrite = 0
     counter = 1
-    def __init__(self, name):
-        print("----- Starting up", name, "-----")
-        self.name = name
+    def __init__(self):
+        print("----- Starting up bot -----")
 
     def speech_to_text(self):
         # recognizer = sr.Recognizer()
@@ -89,16 +88,15 @@ class ChatBot:
         #    print("Me  --> ", self.text)
         # except:
         #    print("Me  -->  ERROR")
-
-        if self.counter % 15 == 0:
+        
+        if self.counter % 8 == 0:
             print("dev  --> It is fun talking about movies!")
-        elif self.counter % 10 == 0:
+        elif self.counter % 6 == 0:
             print("dev  --> Movie questions are fun!")
-        elif self.counter % 5 == 0:
+        elif self.counter % 3 == 0:
             print("dev  --> I am really interested in movies. Let's talk about movies!")
 
         self.text = input("Me  --> ")
-
         # check spelling. If there is an error
         # ask user for clarification
         if self.rewrite == 0:
@@ -109,7 +107,6 @@ class ChatBot:
                     self.text = input("Me  --> ")
                     result, questionable_word = check_sentence_spelling(self.text)
                     if result == 0:
-                        print("Dev  --> Thanks!")
                         self.rewrite = 1
                         break
         else:
@@ -141,8 +138,8 @@ class ChatBot:
     @staticmethod
     def text_to_speech(text):
         print("Dev --> ", text)
-        # speaker = gTTS(text=text, lang="en", slow=False)
-
+        speaker = gTTS(text=text, lang="en", slow=False)
+        
         # speaker.save("res.mp3")
         # statbuf = os.stat("res.mp3")
         # mbytes = statbuf.st_size / 1024
@@ -165,20 +162,16 @@ class ChatBot:
 # Running the AI
 if __name__ == "__main__":
 
-    ai = ChatBot(name="chatbot")
-    nlp = transformers.pipeline("conversational", model="facebook/blenderbot_small-90M")
+    ai = ChatBot()
+    nlp = transformers.pipeline("conversational", model="facebook/blenderbot-400M-distill")
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
     ex =True
     while ex:
         ai.speech_to_text()
 
-        ## wake up
-        if ai.wake_up(ai.text) is True:
-            res = "Hello I am Dave the AI, what can I do for you?"
-
         ## action time
-        elif "time" in ai.text:
+        if "time" in ai.text:
             res = ai.action_time()
 
         ## respond politely
