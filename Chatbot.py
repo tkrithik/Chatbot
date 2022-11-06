@@ -106,10 +106,10 @@ class ChatBot:
                     if result == 0:
                         self.rewrite = 1
                         break
-            self.rewrite = 1
+            
         else:
             matches = tool.check(self.text)
-            print(matches)
+            #print(matches)
             while True:
                 if len(matches) != 0:
                     print(matches)
