@@ -27,20 +27,26 @@ import datetime
 import numpy as np
 
 # fetch a weather forecast from a city
+weather_type = ""
+temperature = 0
 async def getweather():
     async with python_weather.Client(format=python_weather.IMPERIAL) as client:
         weather = await client.get("Dublin")
 
         # returns the current day's forecast temperature (int)
-        return (weather.current.type), (weather.current.temperature)
+        global temperature
+        global weather_type
+        weather_type = str(weather.current.type)
+        temperature = weather.current.temperature
+        #print(type(weather_type), type(temperature))
 
+        return (weather.current.type), (weather.current.temperature)
+        
 
 
 if os.name == "nt":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-weather_type, temp = asyncio.run(getweather())
-print(weather_type, temp)
 tool = language_tool_python.LanguageTool('en-US')
 def check_word_spelling(word):
     word = Word(word)
@@ -77,28 +83,19 @@ class ChatBot:
     def __init__(self):
         print("----- Starting up bot -----")
 
-    def speech_to_text(self):
-        # recognizer = sr.Recognizer()
-        # with sr.Microphone() as mic:
-        #    print("Listening...")
-        #    audio = recognizer.listen(mic)
-        #    self.text="ERROR"
-        # try:
-        #    self.text = recognizer.recognize_google(audio)
-        #    print("Me  --> ", self.text)
-        # except:
-        #    print("Me  -->  ERROR")
-        
+    def conversation(self):
         if self.counter % 8 == 0:
-            print("dev  --> It is fun talking about movies!")
+            self.text_to_speech("It is fun talking about movies!")
+            self.counter = 0
         elif self.counter % 6 == 0:
-            print("dev  --> Movie questions are fun!")
+            self.text_to_speech("Movie questions are fun!")
         elif self.counter % 3 == 0:
-            print("dev  --> I am really interested in movies. Let's talk about movies!")
+            self.text_to_speech("I am really interested in movies. Let's talk about movies!")
 
         self.text = input("Me  --> ")
         # check spelling. If there is an error
         # ask user for clarification
+        self.rewrite = 0
         if self.rewrite == 0:
             result, questionable_word = check_sentence_spelling(self.text)
             if result == 1:
@@ -109,8 +106,10 @@ class ChatBot:
                     if result == 0:
                         self.rewrite = 1
                         break
+            self.rewrite = 1
         else:
             matches = tool.check(self.text)
+            print(matches)
             while True:
                 if len(matches) != 0:
                     print(matches)
@@ -134,28 +133,19 @@ class ChatBot:
                     break
 
         self.counter += 1
-
-    @staticmethod
-    def text_to_speech(text):
+    def text_to_speech(self, text):
         print("Dev --> ", text)
         speaker = gTTS(text=text, lang="en", slow=False)
         
-        # speaker.save("res.mp3")
-        # statbuf = os.stat("res.mp3")
-        # mbytes = statbuf.st_size / 1024
-        # duration = mbytes / 200
-        # os.system('start res.mp3')  #if you are using mac->afplay or else for windows->start
-        # os.system("close res.mp3")
-        # time.sleep(int(50*duration))
-        # os.remove("res.mp3")
+        speaker.save("res.mp3")
+        statbuf = os.stat("res.mp3")
+        mbytes = statbuf.st_size / 1024
+        duration = mbytes / 200
+        os.system('afplay res.mp3')  #if you are using mac->afplay or else for windows->start
+        #os.system("close res.mp3")
+        os.remove("res.mp3")
 
-
-
-    def wake_up(self, text):
-        return True if self.name in text.lower() else False
-
-    @staticmethod
-    def action_time():
+    def action_time(self):
         return datetime.datetime.now().time().strftime('%H:%M')
 
 
@@ -165,19 +155,22 @@ if __name__ == "__main__":
     ai = ChatBot()
     nlp = transformers.pipeline("conversational", model="facebook/blenderbot-400M-distill")
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
-
     ex =True
+    res = np.random.choice(["Hi, how are you? My name is Chatter." ,"Hello! My name is Chatter." ,"Hello, what do you want to talk about? My name is Chatter." ,"Good afternoon, how can I help you? My name is Chatter."])
+    ai.text_to_speech(res)
     while ex:
-        ai.speech_to_text()
+            
+        ai.conversation()
 
         ## action time
         if "time" in ai.text:
             res = ai.action_time()
-
+        elif "weather" in ai.text:
+            asyncio.run(getweather())
+            res = "The weather is " + weather_type + " and " + str(temperature) + " degrees"
         ## respond politely
         elif any(i in ai.text for i in ["thank" ,"thanks"]):
-            res = np.random.choice \
-                (["you're welcome!" ,"anytime!" ,"no problem!" ,"cool!" ,"I'm here if you need me!" ,"mention not"])
+            res = np.random.choice(["you're welcome!" ,"anytime!" ,"no problem!" ,"cool!" ,"I'm here if you need me!" ,"mention not"])
 
         elif any(i in ai.text for i in ["exit" ,"close"]):
             res = np.random.choice(["Tata" ,"Have a good day" ,"Bye" ,"Goodbye" ,"Hope to meet soon" ,"peace out!"])
@@ -192,7 +185,8 @@ if __name__ == "__main__":
                 #chat = nlp(transformers.Conversation(ai.text), pad_token_id=50256)
                 chat = nlp(transformers.Conversation(ai.text))
                 res = str(chat)
-                res = res[res.find("bot >> " ) +6:].strip()
+                #print("Without stripped" + res)
+                res = res[res.find("bot >> " ) + 6:].strip()
 
         ai.text_to_speech(res)
     print("----- Closing down chatbot -----")
