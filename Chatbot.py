@@ -1,6 +1,6 @@
 # weather
-import python_weather
-import asyncio
+import requests
+import json
 
 # for speech-to-text
 import speech_recognition as sr
@@ -27,25 +27,22 @@ import datetime
 import numpy as np
 
 # fetch a weather forecast from a city
-weather_type = ""
-temperature = 0
-async def getweather():
-    async with python_weather.Client(format=python_weather.IMPERIAL) as client:
-        weather = await client.get("Dublin")
-
-        # returns the current day's forecast temperature (int)
-        global temperature
-        global weather_type
-        weather_type = str(weather.current.type)
-        temperature = weather.current.temperature
-        #print(type(weather_type), type(temperature))
-
-        return (weather.current.type), (weather.current.temperature)
-        
+def getweather():
+    # get the hyperlink for corrosponding grid from Latitude and longitude
+    r1 = requests.get('https://api.weather.gov/points/37.7022,-121.9358')
+    r1_j = r1.json()
+    link = r1_j['properties']['forecastHourly']
+    r = requests.get(link)
+    r_j = r.json()
+    temperature = r_j['properties']['periods'][0]['temperature']
+    shortForecast = r_j['properties']['periods'][0]['shortForecast']
+    return shortForecast, temperature
 
 
-if os.name == "nt":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+weather_type, temperature = getweather()
+#print(weather_type, temperature)
+
 
 tool = language_tool_python.LanguageTool('en-US')
 def check_word_spelling(word):
@@ -100,7 +97,7 @@ class ChatBot:
             result, questionable_word = check_sentence_spelling(self.text)
             if result == 1:
                 while True:
-                    print("Dev  --> Could you tell me a little bit about what do you mean by \'" + questionable_word + "\'?")
+                    print("Dev  --> Could you tell me a little bit about what you mean by \'" + questionable_word + "\'?")
                     self.text = input("Me  --> ")
                     result, questionable_word = check_sentence_spelling(self.text)
                     if result == 0:
@@ -141,8 +138,7 @@ class ChatBot:
         statbuf = os.stat("res.mp3")
         mbytes = statbuf.st_size / 1024
         duration = mbytes / 200
-        os.system('afplay res.mp3')  #if you are using mac->afplay or else for windows->start
-        #os.system("close res.mp3")
+        os.system('afplay res.mp3')
         os.remove("res.mp3")
 
     def action_time(self):
@@ -162,13 +158,12 @@ if __name__ == "__main__":
             
         ai.conversation()
 
-        ## action time
+        #time
         if "time" in ai.text:
             res = ai.action_time()
         elif "weather" in ai.text:
-            asyncio.run(getweather())
-            res = "The weather is " + weather_type + " and " + str(temperature) + " degrees"
-        ## respond politely
+            res = "The weather is " + weather_type + " and " + str(temperature) + " degrees."
+        # polite responses
         elif any(i in ai.text for i in ["thank" ,"thanks"]):
             res = np.random.choice(["you're welcome!" ,"anytime!" ,"no problem!" ,"cool!" ,"I'm here if you need me!" ,"mention not"])
 
@@ -176,13 +171,12 @@ if __name__ == "__main__":
             res = np.random.choice(["Tata" ,"Have a good day" ,"Bye" ,"Goodbye" ,"Hope to meet soon" ,"peace out!"])
 
             ex =False
-        ## conversation
+        # conversation
         else:
             if ai.text == "ERROR":
                 res ="Sorry, come again?"
             else:
                 #print('input to chatbot', ai.text)
-                #chat = nlp(transformers.Conversation(ai.text), pad_token_id=50256)
                 chat = nlp(transformers.Conversation(ai.text))
                 res = str(chat)
                 #print("Without stripped" + res)
